@@ -3,7 +3,7 @@ use strict;
 use base qw/HTML::TagCloud Class::Data::Inheritable/;
 use Time::Local;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 __PACKAGE__->mk_classdata($_)
 for qw/colors _epoch_level base_font_size font_size_range/;
@@ -78,7 +78,7 @@ sub html_tags {
 	my $count_factor = HTML::TagCloud::Extended::Factor->new(
 		min		=> $min_count,
 		max		=> $max_count,
-		range	=> $self->base_font_size,
+		range	=> $self->max_font_size - $self->min_font_size,
 	);
 
 	@tags = sort { $epochs->{$b} <=> $epochs->{$a} } @tags;

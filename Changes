@@ -1,5 +1,8 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
+0.02  Sun Jul 17 12:36:06 2005
+	- bugfix
+
 0.01  Fri Jul 15 12:36:06 2005
 	- original version; created by h2xs 1.23 with options
 		-X -A HTML::TagCloud::Extended
