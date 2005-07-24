@@ -1,5 +1,8 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
+0.03  Sun Jul 24 16:14:00 2005
+	- fixed Makefile.PL add Class::Data::Inheritable to prerequired modules list
+
 0.02  Sun Jul 17 12:36:06 2005
 	- bugfix
 

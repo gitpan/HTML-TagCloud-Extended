@@ -5,5 +5,6 @@ WriteMakefile(
     PREREQ_PM         => {
 		HTML::TagCloud	=> 0,
 		Time::Local		=> 0,
+		Class::Data::Inheritable => 0,
 	},
 );
