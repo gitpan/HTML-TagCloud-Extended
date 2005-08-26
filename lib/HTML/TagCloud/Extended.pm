@@ -3,7 +3,7 @@ use strict;
 use base qw/HTML::TagCloud Class::Data::Inheritable/;
 use Time::Local;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 __PACKAGE__->mk_classdata($_)
 for qw/colors _epoch_level base_font_size font_size_range/;
@@ -46,6 +46,7 @@ sub css {
 sub html {
     my($self, $limit_conf) = @_;
     my $tags = $self->html_tags($limit_conf);
+	return "" unless $tags;
     return join "", @$tags;
 }
 
