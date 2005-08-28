@@ -1,150 +1,74 @@
 package HTML::TagCloud::Extended;
 use strict;
-use base qw/HTML::TagCloud Class::Data::Inheritable/;
-use Time::Local;
+use warnings;
+use base qw/Class::Data::Inheritable Class::Accessor::Fast/;
+use Readonly;
+use HTML::TagCloud::Extended::TagColors;
+use HTML::TagCloud::Extended::TagList;
+use HTML::TagCloud::Extended::Tag;
+use HTML::TagCloud::Extended::Factor;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
-__PACKAGE__->mk_classdata($_)
-for qw/colors _epoch_level base_font_size font_size_range/;
+Readonly my $DEFAULT_BASE_FONT_SIZE  => 24;
+Readonly my $DEFAULT_FONT_SIZE_RANGE => 12;
+Readonly my $DEFAULT_CSS_CLASS       => "tagcloud";
 
-__PACKAGE__->colors( HTML::TagCloud::Extended::TagColors->new(
-    earliest => 'cccccc',
-    earlier  => '9999cc',
-    later    => '9999ff',
-    latest   => '0000ff',
-) );
+__PACKAGE__->mk_classdata('_epoch_level');
+__PACKAGE__->_epoch_level([qw/earliest earlier later latest/]);
 
-__PACKAGE__->_epoch_level( [qw/earliest earlier later latest/] );
-__PACKAGE__->base_font_size(24);
-__PACKAGE__->font_size_range(12);
+__PACKAGE__->mk_accessors(qw/
+    colors
+    tags
+    base_font_size
+    font_size_range
+    css_class
+/);
 
 sub new {
     my $class = shift;
-    my $self = $class->SUPER::new(@_);
-    $self->{epochs} = {};
-    bless $self, $class;
+    my $self  = bless { }, $class;
+    $self->_init(@_);
+    return $self;
+}
+
+sub _init {
+    my $self = shift;
+    $self->_set_default_parameters();
+    $self->_set_custom_parameters(@_);
+    $self->colors( HTML::TagCloud::Extended::TagColors->new );
+    $self->tags( HTML::TagCloud::Extended::TagList->new );
+}
+
+sub _set_default_parameters {
+    my $self  = shift;
+    $self->base_font_size( $DEFAULT_BASE_FONT_SIZE );
+    $self->font_size_range( $DEFAULT_FONT_SIZE_RANGE );
+    $self->css_class( $DEFAULT_CSS_CLASS );
+}
+
+sub _set_custom_parameters {
+    my ($self, %args) = @_;
+    if ( exists $args{base_font_size} ) {
+        $self->base_font_size( $args{base_font_size} );
+    }
+    if ( exists $args{font_size_range} ) {
+        $self->font_size_range( $args{font_size_range} );
+    }
+    if ( exists $args{css_class} ) {
+        $self->css_class( $args{css_class} );
+    }
 }
 
 sub add {
-    my($self, $tag, $url, $count, $timestamp) = @_;
-    $self->SUPER::add($tag, $url, $count);
-    $self->{epochs}->{$tag} = $self->_timestamp2epoch($timestamp);
-}
-
-sub css {
-    my $self = shift;
-    my $css = '';
-    foreach my $type ( keys %{ $self->colors } ) {
-        my $color = $self->colors->{$type};
-        my $class = "span.tagcloud_$type";
-        $css .= "$class a {text-decoration: none; color: #${color};}\n";
-    }
-    return $css;
-}
-
-sub html {
-    my($self, $limit_conf) = @_;
-    my $tags = $self->html_tags($limit_conf);
-	return "" unless $tags;
-    return join "", @$tags;
-}
-
-sub html_tags {
-    my($self, $limit_conf) = @_;
-    $limit_conf ||= {};
-    my $counts  = $self->{counts};
-    my $urls    = $self->{urls};
-    my $epochs  = $self->{epochs};
-
-    unless(ref $limit_conf eq 'HASH') {
-        $self->_croak(qq/Wrong setting for limiting./);
-    }
-    my @tags = $self->_splice_tags( %$limit_conf );
-
-    if(scalar(@tags) == 0) {
-        return "";
-    } elsif (scalar(@tags) == 1) {
-        my $tag = $tags[0];
-        my $url = $urls->{$tag};
-        my $size = $self->max_font_size;
-        return qq|<span class="tagcloud_latest" style="font-size: ${size}px;">|
-            .qq|<a href="$url">$tag</a></span>\n|;
-    }
-
-    @tags = sort{ $counts->{$b} <=> $counts->{$a} } @tags;
-    my $min_count = $counts->{$tags[-1]};
-    my $max_count = $counts->{$tags[0]};
-
-    my $count_factor = HTML::TagCloud::Extended::Factor->new(
-        min      => $min_count,
-        max      => $max_count,
-        range    => $self->max_font_size - $self->min_font_size,
+    my($self, $tag_name, $url, $count, $timestamp) = @_;
+    my $tag = HTML::TagCloud::Extended::Tag->new(
+        name      => $tag_name  || '',
+        url       => $url       || '',
+        count     => $count     || 0,
+        timestamp => $timestamp,
     );
-
-    @tags = sort { $epochs->{$b} <=> $epochs->{$a} } @tags;
-    my $min_epoch = $epochs->{$tags[-1]};
-    my $max_epoch = $epochs->{$tags[0]};
-
-    my $epoch_factor = HTML::TagCloud::Extended::Factor->new(
-        min      => $min_epoch,
-        max      => $max_epoch,
-        range    => 3,
-    );
-
-    my @html_tags = "";
-    foreach my $tag ( sort @tags ) {
-        my $count    = $counts->{$tag};
-        my $url      = $urls->{$tag};
-        my $epoch    = $epochs->{$tag};
-        my $count_level = $count_factor->get_level($count);
-        my $epoch_level = $epoch_factor->get_level($epoch);
-        my $color_type  = $self->_epoch_level->[$epoch_level];
-        my $font_size   = $self->min_font_size + $count_level;
-        push @html_tags, qq|<span class="tagcloud_$color_type" style="font-size: ${font_size}px;">|
-            .qq|<a href="$url">$tag</a></span>\n|;
-    }
-    return \@html_tags;
-}
-
-sub _splice_tags {
-    my($self, $type, $count) = @_;
-    $count += 0;
-    my @tags = keys %{ $self->{counts} };
-    unless($type) {
-        return @tags;
-    }
-    $type = lc($type);
-    unless($type =~ /^(?:counts|timestamp)/ ){
-        $self->_croak(qq/Unknown limiting type "$type"./);
-    }
-    my $desc = $type =~ s/_desc$//i;
-    $type = "epochs" if $type eq 'timestamp';
-    @tags = sort { $self->{$type}->{$a} <=> $self->{$type}->{$b} } @tags;
-    @tags = reverse(@tags) if $desc;
-
-    return splice(@tags, 0, $count);
-}
-
-sub _timestamp2epoch {
-    my($self, $timestamp) = @_;
-    if($timestamp) {
-        my($year, $month, $mday, $hour, $min, $sec);
-        if($timestamp =~ /^(\d{4})[-\/]{0,1}(\d{2})[-\/]{0,1}(\d{2})\s{0,1}(\d{2}):{0,1}(\d{2}):{0,1}(\d{2})$/){
-            $year  = $1;
-            $month = $2;
-            $mday  = $3;
-            $hour  = $4;
-            $min   = $5;
-            $sec   = $6;
-        } else {
-            $self->_croak(qq/Wrong timestamp format "$timestamp"./);
-        }
-        my $epoch = timelocal($sec, $min, $hour, $mday, $month - 1, $year - 1900);
-        return $epoch;
-    } else {
-        return time();
-    }
+    $self->tags->add($tag);
 }
 
 sub max_font_size {
@@ -154,87 +78,101 @@ sub max_font_size {
 
 sub min_font_size {
     my $self = shift;
-    my $num =  $self->base_font_size - $self->font_size_range;
+    my $num  = $self->base_font_size - $self->font_size_range;
     return $num > 0 ? $num : 0;
 }
 
-sub _croak {
-    my($self, $msg) = @_;
-    require Carp; Carp::croak($msg);
+sub html_and_css {
+    my ($self, $conf) = @_;
+    my $html = qq|<style type="text/css">\n|.$self->css.qq|</style>\n|;
+    $html .= $self->html($conf);
+    return $html;
 }
 
-package HTML::TagCloud::Extended::Factor;
-
-sub new {
-    my $class = shift;
-    my $self = bless {
-        min     => 0,
-        max     => 0,
-        range   => 0,
-        _factor => 0,
-    }, $class;
-    $self->_init(@_);
-    return $self;
-}
-
-sub _init {
-    my($self, %args) = @_;
-    foreach my $key ( qw/min max range/ ) {
-        if(exists $args{$key}){
-            $self->{$key} = $args{$key};
-        } else {
-            $self->_croak(qq/"$key" not found./);
+sub css {
+    my $self = shift;
+    my $css  = '';
+    foreach my $type ( keys %{ $self->colors } ) {
+        my $color = $self->colors->{$type};
+        my $class = $self->css_class;
+        foreach my $attr ( keys %$color ) {
+            my $code = $color->{$attr};
+            $css .= ".${class}.${type} a:${attr} {text-decoration: none; color: #${code};}\n";
         }
     }
-    my $range = $args{range};
-    my $min = sqrt($args{min});
-    my $max = sqrt($args{max});
-    $min -= $range if($min == $max);
-    $self->{_factor} = $range / ($max - $min);
+    return $css;
 }
 
-sub get_level {
-    my($self, $number) = @_;
-    return int( ( sqrt($number + 0) - sqrt($self->{min}) ) * $self->{_factor} );
+sub html {
+    my ($self, $conf) = @_;
+    my $html_tags = $self->html_tags($conf);
+    my $html = join "", @$html_tags;
+    return $self->wrap_div($html);
 }
 
-sub _croak {
-    my($self, $msg) = @_;
-    require Carp; Carp::croak($msg);
+sub wrap_span {
+    my($self, $html) = @_;
+    return "" unless $html;
+    return sprintf qq|<span class="%s">\n%s</span>\n|, $self->css_class, $html;
 }
 
-package HTML::TagCloud::Extended::TagColors;
-
-sub new {
-    my $class = shift;
-    my $self = bless {
-        earliest => '',
-        earlier  => '',
-        later    => '',
-        latest   => '',
-        @_,
-    }, $class;
-    return $self;
+sub wrap_div {
+    my($self, $html) = @_;
+    return "" unless $html;
+    return sprintf qq|<div class="%s">\n%s</div>\n|, $self->css_class, $html;
 }
 
-sub set {
-    my($self, @args) = @_;
-    while(my($type, $color) = splice(@args, 0, 2)) {
-        $color =~ s/\#//;
-        unless( $type =~ /(?:earliest|earlier|later|latest)/ ) {
-            $self->_croak(qq/Wrong type. "$type". /
-            .qq/Choose type from [earliest earlier later laterst]./);
-        }
-        unless( $color =~ /^[0-9a-fA-F]{6}$/ ) {
-            $self->_croak(qq/Wrong number format "$color"./);
-        }
-        $self->{$type} = $color;
+sub html_tags {
+    my($self, $conf) = @_;
+    
+    my $tags_amount = $self->tags->count;
+    if ($tags_amount == 0) {
+        return [];
+    } elsif ($tags_amount == 1) {
+        my $ite  = $self->tags->iterator;
+        my $tag  = $ite->first;
+        my $html = $self->create_html_tag($tag, 'latest', $self->max_font_size);
+        return [$html];
     }
+
+    $conf ||= {};
+    my $order_by = $conf->{order_by} || 'name';
+    $self->tags->sort($order_by);
+    my $limit = $conf->{limit};
+    my $tags  = $limit ? $self->tags->splice(0, $limit) : $self->tags;
+    
+    my $count_factor = HTML::TagCloud::Extended::Factor->new(
+        min   => $tags->min_count,
+        max   => $tags->max_count,
+        range => $self->max_font_size - $self->min_font_size,
+    );
+
+    my $epoch_factor = HTML::TagCloud::Extended::Factor->new(
+        min   => $tags->min_epoch,
+        max   => $tags->max_epoch,
+        range => 3,
+    );
+
+    my @html_tags = ();
+    my $ite = $tags->iterator;
+    while( my $tag = $ite->next ) {
+        my $count_lv   = $count_factor->get_level($tag->count);
+        my $epoch_lv   = $epoch_factor->get_level($tag->epoch);
+        my $color_type = $self->_epoch_level->[$epoch_lv];
+        my $font_size  = $self->min_font_size + $count_lv;
+        my $html_tag   = $self->create_html_tag($tag, $color_type, $font_size);
+        push @html_tags, $html_tag;
+    }
+    return \@html_tags;
 }
 
-sub _croak {
-    my($self, $msg) = @_;
-    require Carp; Carp::croak($msg);
+sub create_html_tag {
+    my($self, $tag, $type, $size) = @_;
+    return sprintf qq|<span class="%s" style="font-size: %d"><a href="%s">%s</a></span>\n|,
+        $type,
+        $size,
+        $tag->url,
+        $tag->name;
 }
 
 1;
@@ -249,27 +187,33 @@ HTML::TagCloud::Extended - HTML::TagCloud extension
     use HTML::TagCloud::Extended;
 
     my $cloud = HTML::TagCloud::Extended->new();
-
     $cloud->add($tag1, $url1, $count1, $timestamp1);
     $cloud->add($tag2, $url2, $count2, $timestamp2);
     $cloud->add($tag3, $url3, $count3, $timestamp3);
 
-    my $html = $cloud->html_and_css( { timestamp_desc => 50 } );
+    my $html = $cloud->html_and_css( {
+        order_by => 'count_desc',
+        limit    => 20,
+    } );
+
+    print $html;
 
 =head1 DESCRIPTION
 
-This is L<HTML::TagCloud> extension module.
+This is extension of L<HTML::TagCloud>.
 
 This module allows you to register timestamp with tags.
-And tags' color will be changed according to it's timestamp.
+And color of tags will be changed according to it's timestamp.
 
-=head1 TIMESTAMP AND COLORS
+Now, this doesn't depend on L<HTML::TagCloud>.
+
+=head1 TIMESTAMP
 
 When you call 'add()' method, set timestamp as last argument.
 
-    $cloud->add('perl', 'http://www.perl.org', 20, '2005-07-15 00:00:00');
+    $cloud->add('perl','http://www.perl.org/', 20, '2005-07-15 00:00:00');
 
-=head2 TIMESTAMP FORMAT
+=head2 FORMAT
 
 follow three types of format are allowed.
 
@@ -283,7 +227,7 @@ follow three types of format are allowed.
 
 =back
 
-=head2 COLORS
+=head1 COLORS
 
 This module chooses color from follow four types according to tag's timestamp.
 
@@ -299,33 +243,52 @@ This module chooses color from follow four types according to tag's timestamp.
 
 =back
 
-You needn't to set colors becouse the default colors are set already.
+You needn't to set colors because the default colors are set already.
 
 But when you want to set colors by yourself, of course, you can.
 
-    HTML::TagCloud::Extended->colors->set(
-        earliest    => '#000000',
-        earlier     => '#333333',
-        later       => '#999999',
-        latest      => '#cccccc',
+    my $cloud = HTML::TagCloud::Extended->new;
+
+    $cloud->colors->set(
+        earliest => '#000000',
     );
 
-=head1 LIMITING
+    $cloud->colors->set(
+        earlier => '#333333',
+        later   => '#999999',
+        latest  => '#cccccc',
+   );
 
-When you want to limit the amount of tags, 'html()', 'html_and_css()' and follow new method 'html_tags()'
+    # or, you can set color for each attribute
+    $cloud->colors->set(
+        earliest => {
+            link    => '#000000',
+            hover   => '#CCCCCC',
+            visited => '#333333',
+            active  => '#666666',
+        },
+    );
+
+=head1 LIMITTING
+
+When you want to limit the amount of tags, 'html()', html_and_css()'
 need second argument as hash reference.
 
-    $cloud->html_and_css( { counts => 20 } );
+    $cloud->html_and_css( { order_by => 'timestamp_desc' , limit => 20 } );
 
-This is combination of sorting type and amount.
+=head2 SORTING TYPE
 
-=head2 SORTING TYPE FOR LIMITING
+default is 'name'
 
 =over 4
 
-=item counts
+=item name
 
-=item counts_desc
+=item name_desc
+
+=item count
+
+=item count_desc
 
 =item timestamp
 
@@ -333,31 +296,41 @@ This is combination of sorting type and amount.
 
 =back
 
-=head1 OTHER NEW FEATURES
+=head1 OTHER FEATURES
 
 =over 4
 
-=item html_tags
-
-    my $html_tags = $cloud->html_tags({counts_desc => 20});
-
-    print "<ul>\n";
-    foreach my $html_tag ( @$html_tags ) {
-        print "<li>$html_tag</li>\n";
-    }
-    print "</ul>\n";
-
 =item base_font_size
 
-    HTML::TagCloud::Extended->base_font_size(30);
+default size is 24
 
-default size is 24.
+    # set as constructor's argument
+    my $cloud = HTML::TagCloud::Extended->new(
+		base_font_size => 30,
+	);
+
+    # or you can use accessor.
+    $cloud->base_font_size(30);
 
 =item font_size_range
 
-    HTML::TagCloud::Extended->font_size_range(10);
+defualt range is 12.
 
-default range is 12.
+    my $cloud = HTML::TagCloud::Extended->new(
+        font_size_range => 10
+    );
+
+    $cloud->font_size_range(10);
+
+=item css_class
+
+default name is 'tagcloud'
+
+    my $cloud = HTML::TagCloud::Extended->new(
+        css_class => 'mycloud',
+    ); 
+
+    $cloud->css_class('mycloud');
 
 =back
 
@@ -367,7 +340,7 @@ L<HTML::TagCloud>
 
 =head1 AUTHOR
 
-Lyo Kato E<lt>kato@lost-season.jpE<gt>
+Lyo Kato E<lt>lyo.kato@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
