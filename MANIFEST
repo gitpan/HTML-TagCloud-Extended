@@ -3,6 +3,9 @@ Makefile.PL
 MANIFEST
 README
 t/00_compile.t
+t/01_color.t
+t/02_tag.t
+t/03_tag_list.t
 lib/HTML/TagCloud/Extended.pm
 lib/HTML/TagCloud/Extended/Tag.pm
 lib/HTML/TagCloud/Extended/TagList.pm

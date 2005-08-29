@@ -1,11 +1,14 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
-0.05  Sat Aug 27 03:00:00 2005
+0.06  Mon Aug 29 23:00:00 2005
+    - add some test
+
+0.05  Sun Aug 28 23:00:00 2005
     - refactored
       and now, this module doesn't depend on HTML::TagCloud
 
     - fixed and add some features
-      to use multiple tag-cloud in a single process for html-publishing.
+      to use multiple tag-cloud in a single process of html-publishing.
       required by Yasuhiro Horiuchi
 
 0.04  Sat Aug 27 03:00:00 2005

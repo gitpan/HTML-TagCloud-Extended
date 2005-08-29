@@ -8,7 +8,7 @@ use HTML::TagCloud::Extended::TagList;
 use HTML::TagCloud::Extended::Tag;
 use HTML::TagCloud::Extended::Factor;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 Readonly my $DEFAULT_BASE_FONT_SIZE  => 24;
 Readonly my $DEFAULT_FONT_SIZE_RANGE => 12;
@@ -306,8 +306,8 @@ default size is 24
 
     # set as constructor's argument
     my $cloud = HTML::TagCloud::Extended->new(
-		base_font_size => 30,
-	);
+        base_font_size => 30,
+    );
 
     # or you can use accessor.
     $cloud->base_font_size(30);
