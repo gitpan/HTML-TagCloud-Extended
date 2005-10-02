@@ -19,6 +19,10 @@ Readonly my $DEFAULT_LATEST_LINK      => "0000ff";
 Readonly my $DEFAULT_LATEST_VISITED   => "0000ff";
 Readonly my $DEFAULT_LATEST_HOVER     => "0000ff";
 Readonly my $DEFAULT_LATEST_ACTIVE    => "0000ff";
+Readonly my $DEFAULT_HOT_LINK         => "ff0000";
+Readonly my $DEFAULT_HOT_VISITED      => "ff0000";
+Readonly my $DEFAULT_HOT_HOVER        => "ff0000";
+Readonly my $DEFAULT_HOT_ACTIVE       => "ff0000";
 
 sub new {
     my $class = shift;
@@ -47,6 +51,12 @@ sub new {
             hover   => $DEFAULT_LATEST_HOVER,
             active  => $DEFAULT_LATEST_ACTIVE,
         },
+        hot => {
+            link    => $DEFAULT_HOT_LINK,
+            visited => $DEFAULT_HOT_VISITED,
+            hover   => $DEFAULT_HOT_HOVER,
+            active  => $DEFAULT_HOT_ACTIVE,
+        }
     }, $class;
     return $self;
 }
@@ -54,7 +64,7 @@ sub new {
 sub set {
     my ($self, @args) = @_;
     while ( my($type, $color) = splice(@args, 0, 2) ) {
-        unless ( $type =~ /(?:earliest|earlier|later|latest)/ ) {
+        unless ( $type =~ /(?:earliest|earlier|later|latest|hot)/ ) {
             HTML::TagCloud::Extended::Exception->throw(
             qq/Choose type from [earliest earlier later latest]./
             );

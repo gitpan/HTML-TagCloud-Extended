@@ -8,7 +8,7 @@ use HTML::TagCloud::Extended::TagList;
 use HTML::TagCloud::Extended::Tag;
 use HTML::TagCloud::Extended::Factor;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 Readonly my $DEFAULT_BASE_FONT_SIZE  => 24;
 Readonly my $DEFAULT_FONT_SIZE_RANGE => 12;
@@ -23,6 +23,8 @@ __PACKAGE__->mk_accessors(qw/
     base_font_size
     font_size_range
     css_class
+    use_hot_color
+    hot_tags_size
 /);
 
 sub new {
@@ -36,28 +38,37 @@ sub _init {
     my $self = shift;
     $self->_set_default_parameters();
     $self->_set_custom_parameters(@_);
-    $self->colors( HTML::TagCloud::Extended::TagColors->new );
-    $self->tags( HTML::TagCloud::Extended::TagList->new );
+    $self->colors ( HTML::TagCloud::Extended::TagColors->new );
+    $self->tags   ( HTML::TagCloud::Extended::TagList->new   );
 }
 
 sub _set_default_parameters {
     my $self  = shift;
-    $self->base_font_size( $DEFAULT_BASE_FONT_SIZE );
-    $self->font_size_range( $DEFAULT_FONT_SIZE_RANGE );
-    $self->css_class( $DEFAULT_CSS_CLASS );
+    $self->base_font_size  ( $DEFAULT_BASE_FONT_SIZE  );
+    $self->font_size_range ( $DEFAULT_FONT_SIZE_RANGE );
+    $self->css_class       ( $DEFAULT_CSS_CLASS       );
 }
 
 sub _set_custom_parameters {
     my ($self, %args) = @_;
+
     if ( exists $args{base_font_size} ) {
-        $self->base_font_size( $args{base_font_size} );
+        $self->base_font_size($args{base_font_size});
     }
     if ( exists $args{font_size_range} ) {
-        $self->font_size_range( $args{font_size_range} );
+        $self->font_size_range($args{font_size_range});
     }
     if ( exists $args{css_class} ) {
-        $self->css_class( $args{css_class} );
+        $self->css_class($args{css_class});
     }
+    if ( exists $args{hot_tags_size} ) {
+        $self->hot_tags_size($args{hot_tags_size});
+    }
+    else {
+        my $size = $self->base_font_size + ($self->font_size_range / 2);
+        $self->hot_tags_size($size);
+    }
+    $self->use_hot_color( exists $args{use_hot_color} ? $args{use_hot_color} : 0 );
 }
 
 sub add {
@@ -160,6 +171,9 @@ sub html_tags {
         my $epoch_lv   = $epoch_factor->get_level($tag->epoch);
         my $color_type = $self->_epoch_level->[$epoch_lv];
         my $font_size  = $self->min_font_size + $count_lv;
+        if ($self->use_hot_color && $font_size >= $self->hot_tags_size ) {
+            $color_type = 'hot';
+        }
         my $html_tag   = $self->create_html_tag($tag, $color_type, $font_size);
         push @html_tags, $html_tag;
     }
@@ -299,6 +313,32 @@ default is 'name'
 =head1 OTHER FEATURES
 
 =over 4
+
+=item use_hot_color and hot_tags_size
+
+    my $cloud = HTML::TagCloud::Extended->new(
+        use_hot_color => 1,
+        hot_tags_size => 24,
+    );
+
+Then, tags that's size is over 24 applys color for 'hot'.
+If you omit 'hot_tags_size', it'll be proper number automatically.
+
+You can alse change colors for 'hot' by yourself.
+
+    $cloud->colors->set( hot => '#ff9900' );
+
+    # or
+
+    $cloud->colors->set(
+        hot => {
+            link    => '#000000',
+            hover   => '#CCCCCC',
+            visited => '#333333',
+            active  => '#666666',
+        },
+    );
+
 
 =item base_font_size
 

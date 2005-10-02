@@ -1,5 +1,8 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
+0.07  San Oct  2 21:00:00 2005
+    - Now this module can handle 'hot' tags.
+
 0.06  Mon Aug 29 23:00:00 2005
     - add some test
 
