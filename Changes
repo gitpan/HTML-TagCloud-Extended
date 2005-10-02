@@ -1,5 +1,8 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
+0.09  Man Oct  3 01:00:00 2005
+    - fixed documentation
+
 0.08  San Oct  2 21:00:00 2005
     - change to be able to set 'hot' by both 'name' and 'size'
 

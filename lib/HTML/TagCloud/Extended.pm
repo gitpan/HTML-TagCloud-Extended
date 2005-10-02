@@ -8,7 +8,7 @@ use HTML::TagCloud::Extended::TagList;
 use HTML::TagCloud::Extended::Tag;
 use HTML::TagCloud::Extended::Factor;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 Readonly my $DEFAULT_BASE_FONT_SIZE  => 24;
 Readonly my $DEFAULT_FONT_SIZE_RANGE => 12;
@@ -350,6 +350,10 @@ set by size
     $cloud->use_hot_color('size');
     $cloud->hot_tags_size(24);
 
+Then, tags that's size is over 24 applys color for 'hot'.
+If you omit 'hot_tags_size', it'll be proper number automatically.
+
+
 set by name
 
     my $cloud = HTML::TagCloud::Extended->new(
@@ -363,9 +367,6 @@ set by name
 
     $cloud->use_hot_color('name');
     $cloud->hot_tags_name('perl', 'ruby', 'puthon');
-
-Then, tags that's size is over 24 applys color for 'hot'.
-If you omit 'hot_tags_size', it'll be proper number automatically.
 
 You can alse change colors for 'hot' by yourself.
 
