@@ -7,12 +7,14 @@ use HTML::TagCloud::Extended::TagColors;
 use HTML::TagCloud::Extended::TagList;
 use HTML::TagCloud::Extended::Tag;
 use HTML::TagCloud::Extended::Factor;
+use HTML::TagCloud::Extended::Exception;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 Readonly my $DEFAULT_BASE_FONT_SIZE  => 24;
 Readonly my $DEFAULT_FONT_SIZE_RANGE => 12;
 Readonly my $DEFAULT_CSS_CLASS       => "tagcloud";
+Readonly my $DEFAULT_SIZE_SUFFIX     => "px";
 
 __PACKAGE__->mk_classdata('_epoch_level');
 __PACKAGE__->_epoch_level([qw/earliest earlier later latest/]);
@@ -25,6 +27,7 @@ __PACKAGE__->mk_accessors(qw/
     css_class
     use_hot_color
     hot_tags_size
+    _size_suffix
     _hot_tags_name
 /);
 
@@ -65,6 +68,7 @@ sub _set_default_parameters {
     $self->base_font_size  ( $DEFAULT_BASE_FONT_SIZE  );
     $self->font_size_range ( $DEFAULT_FONT_SIZE_RANGE );
     $self->css_class       ( $DEFAULT_CSS_CLASS       );
+    $self->_size_suffix    ( $DEFAULT_SIZE_SUFFIX     );
 }
 
 sub _set_custom_parameters {
@@ -86,8 +90,30 @@ sub _set_custom_parameters {
         my $size = $self->base_font_size + ($self->font_size_range / 2);
         $self->hot_tags_size($size);
     }
+    if ( exists $args{size_suffix} ) {
+        $self->size_suffix($args{size_suffix});
+    }
     $self->_hot_tags_name( exists $args{hot_tags_name} ? $args{hot_tags_name} : []     );
     $self->use_hot_color ( exists $args{use_hot_color} ? $args{use_hot_color} : undef  );
+}
+
+sub size_suffix {
+    my ($self, $suffix) = @_;
+    if ($suffix) {
+        my $correct_suffix;
+        foreach my $registered ( qw/mm cm in pt pc px/ ) {
+            $correct_suffix = $suffix if $suffix eq $registered;
+        }
+        if ($correct_suffix) {
+            $self->_size_suffix($correct_suffix);
+        }
+        else {
+            HTML::TagCloud::Extended::Exception->throw(
+            qq/You should correct suffix for text-size [ mm cm in pt pc px ]. /
+            );            
+        }
+    }
+    $self->_size_suffix;
 }
 
 sub add {
@@ -127,7 +153,7 @@ sub css {
         my $class = $self->css_class;
         foreach my $attr ( keys %$color ) {
             my $code = $color->{$attr};
-            $css .= ".${class}.${type} a:${attr} {text-decoration: none; color: #${code};}\n";
+            $css .= ".${class} .${type} a:${attr} {text-decoration: none; color: #${code};}\n";
         }
     }
     return $css;
@@ -202,9 +228,10 @@ sub html_tags {
 
 sub create_html_tag {
     my($self, $tag, $type, $size) = @_;
-    return sprintf qq|<span class="%s" style="font-size: %d"><a href="%s">%s</a></span>\n|,
+    return sprintf qq|<span class="%s" style="font-size: %d%s"><a href="%s">%s</a></span>\n|,
         $type,
         $size,
+        $self->size_suffix,
         $tag->url,
         $tag->name;
 }
@@ -395,6 +422,20 @@ default size is 24
 
     # or you can use accessor.
     $cloud->base_font_size(30);
+
+=item size_suffix
+
+default suffix is 'px'
+
+You can choose it from [ mm cm in pt pc px ].
+
+    # set as constructor's argument
+    my $cloud = HTML::TagCloud::Extended->new(
+        size_suffix => 'pt',
+    );
+
+    # or you can use accessor.
+    $cloud->size_suffix('cm');
 
 =item font_size_range
 

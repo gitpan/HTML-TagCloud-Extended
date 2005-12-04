@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML::TagCloud::Extended.
 
+0.10  Sun Dec 4 22:00:00 2005
+    - added 'size_suffix' parameter.
+      Tanks to Masahiro Nagano.
+
 0.09  Man Oct  3 01:00:00 2005
     - fixed documentation
 
